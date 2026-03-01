@@ -1,0 +1,1 @@
+export type WorkApplicationStatus = "SUBMITTED" | "VIEWED" | "REJECTED" | "ACCEPTED";

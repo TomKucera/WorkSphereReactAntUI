@@ -1,0 +1,25 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Background with border -->
+  <rect x="2" y="2"
+        width="60"
+        height="60"
+        rx="12"
+        fill="#FFFFFF"
+        stroke="#6C2EB9"
+        stroke-width="4" />
+
+  <!-- Characters -->
+  <text x="50%"
+        y="50%"
+        text-anchor="middle"
+        dominant-baseline="central"
+        font-family="Inter, Arial, Helvetica, sans-serif"
+        font-size="28"
+        font-weight="700"
+        letter-spacing="1"
+        fill="#6C2EB9">
+    JS
+  </text>
+
+</svg>

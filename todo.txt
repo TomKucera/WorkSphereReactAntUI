@@ -1,0 +1,62 @@
+-----------------------------------------------------------------------
+BE
+-----------------------------------------------------------------------
+Applications:
+- complete CRUD
+
+
+-----------------------------------------------------------------------
+FE
+-----------------------------------------------------------------------
+User:
+- add profile ikon (name + logout)
+- auto redirect to login after token expiration / token refreshing
+- multifactor ?
+
+Applications:
+- complete application for job (add info about user: name, phone, email)
+- add list page
+
+CVs:
+- add description
+
+WORKs:
+- items from providers JobsCZ and JobStack contain empty description !
+- avoid apply more times for the same work (apply / application detail)
+- list page ... apply debounce on filters
+- list page ... add filters (last week, . . . )
+
+
+-----------------------------------------------------------------------
+DevOps
+-----------------------------------------------------------------------
+- add to GitHub (BE + FE)
+- deploy to GoogleCloud (BE + FE)
+
+-----------------------------------------------------------------------
+Provider icons specification:
+-----------------------------------------------------------------------
+CoolJobs
+Background: #EE9900
+Foreground: #2E556D
+Characters: CJ
+
+JobsCZ
+Background: #08355A
+Foreground: #FFFFFF
+Characters: J
+
+Titans
+Background: #1997C0
+Foreground: #FFFFFF
+Characters: T
+
+JobStack
+Background: #FFFFFF
+Foreground: #6C2EB9
+Characters: JS
+
+StartupJobs
+Background: #FFFFFF
+Foreground: #1747D8
+Characters: ST

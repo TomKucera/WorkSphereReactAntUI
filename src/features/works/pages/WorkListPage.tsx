@@ -1,0 +1,473 @@
+import { useEffect, useState, useRef } from 'react';
+import { Link } from "react-router-dom";
+import './WorkListPage.css';
+
+import dayjs from "dayjs";
+
+import {
+  Table,
+  Typography,
+  Space,
+  message,
+  Input,
+  InputNumber,
+  Select,
+  Button,
+  DatePicker,
+  Avatar,
+  Tooltip,
+  Flex,
+} from "antd";
+import { ReloadOutlined, SendOutlined, DownOutlined } from "@ant-design/icons";
+
+import type { ColumnsType} from 'antd/es/table';
+
+import { listWorks } from "../services/workApi";
+import type { WorkFilter } from "../types/workFilter";
+import type { WorkListQuery, WorkSortableColumn } from "../types/workListQuery"
+import { WorkListItem } from "../types/workListItem";
+import type { ListPage } from "../../_base/types/listPage";
+import type { Sorting } from "../../_base/types/sorting"
+import { getNextSortState } from "../../_base/extensions"
+
+import { formatDateTime, getProviderWorkUrl, getProviderIcon, buildDatePickerPresets } from '../../../shared/extensions';
+import { useDebounce } from '../../../shared/hooks';
+
+const { Title } = Typography;
+const { RangePicker } = DatePicker;
+
+const PAGE_SIZE_OPTIONS = ['10', '15', '20', '25', '30'];
+const DEFAULT_PAGE_SIZE = Number(PAGE_SIZE_OPTIONS[1]);
+
+function formatSalary(
+  min: number | null,
+  max: number | null,
+  currency: string | null
+): string | null {
+  if (min == null && max == null) return null;
+
+  const format = (value: number) =>
+    value.toLocaleString('cs-CZ'); // or 'en-US' depending on locale
+
+  const cur = currency ?? '';
+
+  if (min != null && max != null) return `${format(min)} - ${format(max)} ${cur}`;
+  if (min != null) return `from ${format(min)} ${cur}`;
+  if (max != null) return `up to ${format(max)} ${cur}`;
+
+  return null;
+}
+
+const filterInputStyle = { flex: 1, marginTop: 4 };
+
+const defaultFilter: WorkFilter = { active: true, application: false };  // createdFrom
+const defaultSorting: Sorting<WorkSortableColumn> = {sortColumn: 'CreatedAt', sortOrder: 'desc'};
+const datePickerPresets = buildDatePickerPresets(['this_week', 'last_week', 'this_month'])
+
+export default function WorkListPage() {
+  const [data, setData] = useState<ListPage<WorkListItem> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, page_size: DEFAULT_PAGE_SIZE });
+  const [filters, setFilters] = useState<WorkFilter>(defaultFilter);
+  const [sort, setSort] = useState<Sorting<WorkSortableColumn>>(defaultSorting);
+  const debouncedFilters = useDebounce(filters);
+  const isFilterChange = useRef(false);
+
+  const fetchList = async (activeFilters = debouncedFilters) => {
+    try {
+      setLoading(true);
+      const query: WorkListQuery = {
+        page: pagination.page,
+        pageSize: pagination.page_size,
+        sortColumn: sort.sortColumn ?? "Id",
+        sortOrder: sort.sortOrder ?? "asc",
+        filter: activeFilters
+      }
+      const res = await listWorks(query);
+      setData(res);
+    } catch {
+      message.error("Failed to load works");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // fetch on pagination
+  useEffect(() => {
+    if (isFilterChange.current) return;
+    fetchList();
+  }, [pagination.page, pagination.page_size]);
+
+  // fetch on filter
+  useEffect(() => {
+    if (!isFilterChange.current) return;
+  
+    isFilterChange.current = false;
+    fetchList(debouncedFilters);
+  }, [debouncedFilters]);
+
+  // fetch on sort
+  useEffect(() => {
+    fetchList();
+  }, [sort]);
+
+  const onFilterChange = (
+    key: keyof typeof filters,
+    value: any
+  ) => {
+    isFilterChange.current = true;
+  
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  
+    // reset page but DO NOT trigger fetch immediately
+    setPagination(prev => ({
+      ...prev,
+      page: 1,
+    }));
+  };
+  
+  const mapRangeToFilter = (
+    dates: any
+  ): { from: string | null; to: string | null } => {
+  
+    if (!dates) {
+      return { from: null, to: null };
+    }
+  
+    const [fromDate, toDate] = dates;
+    return {
+      from: fromDate ? fromDate.format("YYYY-MM-DD") : null,
+      to: toDate ? toDate.format("YYYY-MM-DD") : null,
+    };
+  };
+
+  const handleReset = () => {
+    isFilterChange.current = true;
+    setFilters(defaultFilter);
+    setSort(defaultSorting);
+  };
+
+  const handleChangeCreated = (dates: any, _dateStrings: [string, string]) => {
+    const { from, to } = mapRangeToFilter(dates);
+    onFilterChange('createdFrom', from);
+    onFilterChange('createdTo', to);
+  };
+
+  const handleChangeDeleted = (dates: any, _dateStrings: [string, string]) => {
+    const { from, to } = mapRangeToFilter(dates);
+    onFilterChange('deletedFrom', from);
+    onFilterChange('deletedTo', to);
+  };
+
+  const buildSortButton = (column: WorkSortableColumn) => {
+    const isActive = sort.sortColumn === column;
+
+    let icon = "⇅";
+
+    if (isActive && sort.sortOrder === "asc") icon = "↑";
+    if (isActive && sort.sortOrder === "desc") icon = "↓";
+
+    return (
+      <Button
+        size="small"
+        type="text"
+        icon={icon}
+        style={{
+          color: isActive ? "#1677ff" : undefined,
+        }}
+        onClick={() => {
+          const next = getNextSortState(sort, column);
+          setSort(next);
+        }}
+      />
+    );
+  };
+  
+  const columns: ColumnsType<WorkListItem> = [
+    {
+      title: (
+        <div>
+          ID
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Input
+              placeholder="provider"
+              value={filters.provider as string || ""}
+              onChange={(e) =>
+                onFilterChange("provider", e.target.value)
+              }
+              size="small"
+              style={filterInputStyle}
+            />
+            {buildSortButton("Provider")}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Input
+              placeholder="original id"
+              value={filters.originalId as string || ''}
+              onChange={(e) => onFilterChange('originalId', e.target.value)}
+              size="small"
+              style={filterInputStyle}
+            />
+            {buildSortButton("OriginalId")}
+          </div>
+        </div>
+      ),
+      render: (_, r) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Tooltip title={r.provider}>
+            <Avatar
+              src={getProviderIcon(r.provider)}
+              size={18}
+              shape="square"
+            />
+          </Tooltip>
+          {r.originalId}
+        </div>
+      ),
+      key: 'id',
+      // align: 'center',
+      // width: 250,
+    },
+    {
+      title: (
+        <div>
+          Position
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Input
+              placeholder="company"
+              value={filters.company as string || ""}
+              onChange={(e) =>
+                onFilterChange("company", e.target.value)
+              }
+              size="small"
+              style={filterInputStyle}
+            />
+            {buildSortButton("Company")}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Input
+              placeholder="name"
+              value={filters.name as string || ''}
+              onChange={(e) => onFilterChange('name', e.target.value)}
+              size="small"
+              style={filterInputStyle}
+            />
+            {buildSortButton("Name")}
+          </div>
+        </div>
+      ),
+      render: (_, r) => (
+        <div>
+          <div>
+          { (r.company ?? '').length > 0 ? r.company : '?'}
+          </div>
+          <div>
+            {
+            !r.removedByScanId ? (
+              <a
+                href={getProviderWorkUrl(r.provider, r.url)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontWeight:  "bold" }}
+              >
+                {r.name}
+              </a>
+            ) : (
+              <span style={{ fontWeight: "bold" }}>
+                {r.name}
+              </span>
+            )
+          }
+          </div>
+        </div>
+      ),
+      key: 'position',
+      // align: 'center',
+      // width: 250,
+    },
+    {
+      title: (
+        <div>
+          Conditions
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <InputNumber
+              min={0}
+              placeholder="remote from"
+              value={filters.remote}
+              onChange={(value) =>
+                onFilterChange("remote", value)
+              }
+              size="small"
+              style={filterInputStyle}
+            />
+            {buildSortButton("Remote")}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <InputNumber
+              min={0}
+              placeholder="salary from"
+              value={filters.salary}
+              onChange={(value) => onFilterChange('salary', value)}
+              size="small"
+              style={filterInputStyle}
+            />
+            {buildSortButton("Salary")}
+          </div>
+        </div>
+      ),
+      render: (_, r) => (
+        <div>
+          <div>
+          { r.remoteRatio == null ? null : `${r.remoteRatio} %`}
+          </div>
+          <div>
+          {formatSalary(r.salaryMin, r.salaryMax, r.salaryCurrency)}
+          </div>
+        </div>
+      ),
+      key: 'conditions',
+      // align: 'center',
+      // width: 250,
+    },
+    {
+      title: (
+        <div>
+          Dates
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <RangePicker
+              presets={datePickerPresets}
+              placeholder={['Created from', 'Created to']}
+              allowEmpty={[true, true]}
+              size="small"
+              value= {[ filters.createdFrom ? dayjs(filters.createdFrom) : null, filters.createdTo ? dayjs(filters.createdTo) : null]}
+              format="DD.MM.YYYY"
+              disabledDate={(current) => current && current.valueOf() > Date.now()}
+              onChange={handleChangeCreated}
+              style={{ marginTop: 4 }}
+            />
+            {buildSortButton("CreatedAt")}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <RangePicker
+              presets={datePickerPresets}
+              placeholder={['Deleted from', 'Deleted to']}
+              allowEmpty={[true, true]}
+              size="small"
+              value= {[ filters.deletedFrom ? dayjs(filters.deletedFrom) : null, filters.deletedTo ? dayjs(filters.deletedTo) : null]}
+              format="DD.MM.YYYY"
+              disabledDate={(current) => current && current.valueOf() > Date.now()}
+              onChange={handleChangeDeleted}
+              style={{ marginTop: 4 }}
+            />
+            {buildSortButton("DeletedAt")}
+          </div>
+        </div>
+      ),
+      key: "dates",
+      //width: 260,
+      render: (_, r) => (
+        <div>
+          <div style={{color: 'green'}}>{formatDateTime(r.addedByScan.endedAt) ?? '-'}</div>
+          <div style={{color: 'darkred'}}>{formatDateTime(r.removedByScan?.endedAt) ?? '-'}</div>
+        </div>
+      ),
+      // align: 'center',
+    },
+    {
+      // title: "Actions",
+      title: (
+        <div>
+          Actions
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Select
+              placeholder="Select active state"
+              value={filters.active}
+              onChange={(value) => onFilterChange("active", value)}
+              size="small"
+              style={filterInputStyle}
+              options={[
+                { label: "Active", value: true },
+                { label: "Inactive", value: false },
+                { label: "All", value: null },
+              ]}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Select
+              placeholder="Select application state"
+              value={filters.application}
+              onChange={(value) => onFilterChange("application", value)}
+              size="small"
+              style={filterInputStyle}
+              options={[
+                { label: "With application", value: true },
+                { label: "Without application", value: false },
+                { label: "All", value: null },
+              ]}
+            />
+          </div>
+        </div>
+      ),
+      key: "actions",
+      align: "right" as const,
+      render: (_: any, r: WorkListItem) => (
+        <Space>
+          {r.application == null &&
+            (<Link to={`/works/${r.id}/apply`}>
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                size="small"
+                disabled={r.removedByScanId != null}
+              >
+                Apply
+              </Button>
+            </Link>
+            )}
+        </Space>
+      ),
+    },
+  ];
+  
+  return (
+    <>
+      <Flex justify="space-between" align="center">
+        <Title level={3} style={{ margin: 0 }}>
+          Works
+        </Title>
+        <Space>
+          <Tooltip title="Reset filtering and sorting">
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleReset}
+            />
+          </Tooltip>
+        </Space>
+      </Flex>
+
+      <Table
+        rowKey="id"
+        rowClassName={(r) =>
+          r.removedByScanId == null ? 'row-added' : 'row-removed'
+        }
+        dataSource={data?.items}
+        loading={loading}
+        pagination={{
+          current: pagination.page,
+          pageSize: pagination.page_size,
+          showSizeChanger: true,
+          pageSizeOptions: PAGE_SIZE_OPTIONS,
+          total: data?.total,
+          onChange: (page, size) => setPagination({ page: page, page_size: size }),
+        }}
+        columns={columns}
+        style={{ marginTop: 16 }}
+      />
+    </>
+  );
+}
+
+// column ACTIONS: add link to existing application
