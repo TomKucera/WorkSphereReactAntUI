@@ -24,39 +24,22 @@ import type { ColumnsType} from 'antd/es/table';
 
 import { listWorks } from "../services/workApi";
 import type { WorkFilter } from "../types/workFilter";
-import type { WorkListQuery, WorkSortableColumn } from "../types/workListQuery"
+import type { WorkListQuery } from "../types/workListQuery"
+import type { WorkSortableColumn } from "../types/workSortableColumn"
 import { WorkListItem } from "../types/workListItem";
 import type { ListPage } from "../../_base/types/listPage";
 import type { Sorting } from "../../_base/types/sorting"
 import { getNextSortState } from "../../_base/extensions"
 
-import { formatDateTime, getProviderWorkUrl, getProviderIcon, buildDatePickerPresets } from '../../../shared/extensions';
-import { useDebounce } from '../../../shared/hooks';
+import { formatDateTime, formatSalary, getProviderWorkUrl, getProviderIcon, buildDatePickerPresets } from '../../../shared/extensions';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { usePersistentListState } from '../../../shared/hooks/usePersistentListState';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
 
 const PAGE_SIZE_OPTIONS = ['10', '15', '20', '25', '30'];
 const DEFAULT_PAGE_SIZE = Number(PAGE_SIZE_OPTIONS[1]);
-
-function formatSalary(
-  min: number | null,
-  max: number | null,
-  currency: string | null
-): string | null {
-  if (min == null && max == null) return null;
-
-  const format = (value: number) =>
-    value.toLocaleString('cs-CZ'); // or 'en-US' depending on locale
-
-  const cur = currency ?? '';
-
-  if (min != null && max != null) return `${format(min)} - ${format(max)} ${cur}`;
-  if (min != null) return `from ${format(min)} ${cur}`;
-  if (max != null) return `up to ${format(max)} ${cur}`;
-
-  return null;
-}
 
 const filterInputStyle = { flex: 1, marginTop: 4 };
 
@@ -65,24 +48,39 @@ const defaultSorting: Sorting<WorkSortableColumn> = {sortColumn: 'CreatedAt', so
 const datePickerPresets = buildDatePickerPresets(['this_week', 'last_week', 'this_month'])
 
 export default function WorkListPage() {
+  const {
+    filters,
+    setFilters,
+    sort,
+    setSort,
+    pagination,
+    setPagination,
+    reset,
+    isDefault,
+  } = usePersistentListState<WorkFilter, Sorting<WorkSortableColumn>>({
+    storageKey: "work_list_settings",
+    defaultFilter,
+    defaultSort: defaultSorting,
+    defaultPageSize: DEFAULT_PAGE_SIZE,
+  });
+
   const [data, setData] = useState<ListPage<WorkListItem> | null>(null);
   const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ page: 1, page_size: DEFAULT_PAGE_SIZE });
-  const [filters, setFilters] = useState<WorkFilter>(defaultFilter);
-  const [sort, setSort] = useState<Sorting<WorkSortableColumn>>(defaultSorting);
-  const debouncedFilters = useDebounce(filters);
-  const isFilterChange = useRef(false);
 
-  const fetchList = async (activeFilters = debouncedFilters) => {
+  const debouncedFilters = useDebounce(filters);
+
+  const fetchList = async () => {
     try {
       setLoading(true);
+
       const query: WorkListQuery = {
         page: pagination.page,
         pageSize: pagination.page_size,
         sortColumn: sort.sortColumn ?? "Id",
         sortOrder: sort.sortOrder ?? "asc",
-        filter: activeFilters
-      }
+        filter: debouncedFilters,
+      };
+
       const res = await listWorks(query);
       setData(res);
     } catch {
@@ -92,81 +90,61 @@ export default function WorkListPage() {
     }
   };
 
-  // fetch on pagination
-  useEffect(() => {
-    if (isFilterChange.current) return;
-    fetchList();
-  }, [pagination.page, pagination.page_size]);
-
-  // fetch on filter
-  useEffect(() => {
-    if (!isFilterChange.current) return;
-  
-    isFilterChange.current = false;
-    fetchList(debouncedFilters);
-  }, [debouncedFilters]);
-
-  // fetch on sort
+  // Single fetch effect
   useEffect(() => {
     fetchList();
-  }, [sort]);
+  }, [
+    pagination.page,
+    pagination.page_size,
+    sort.sortColumn,
+    sort.sortOrder,
+    debouncedFilters,
+  ]);
 
-  const onFilterChange = (
-    key: keyof typeof filters,
-    value: any
-  ) => {
-    isFilterChange.current = true;
-  
+  // Filter change
+  const onFilterChange = (key: keyof WorkFilter, value: any) => {
     setFilters(prev => ({
       ...prev,
       [key]: value,
     }));
-  
-    // reset page but DO NOT trigger fetch immediately
+
     setPagination(prev => ({
       ...prev,
       page: 1,
     }));
   };
-  
+
+  // Date helpers
   const mapRangeToFilter = (
     dates: any
   ): { from: string | null; to: string | null } => {
-  
-    if (!dates) {
-      return { from: null, to: null };
-    }
-  
+    if (!dates) return { from: null, to: null };
+
     const [fromDate, toDate] = dates;
+
     return {
       from: fromDate ? fromDate.format("YYYY-MM-DD") : null,
       to: toDate ? toDate.format("YYYY-MM-DD") : null,
     };
   };
 
-  const handleReset = () => {
-    isFilterChange.current = true;
-    setFilters(defaultFilter);
-    setSort(defaultSorting);
-  };
-
-  const handleChangeCreated = (dates: any, _dateStrings: [string, string]) => {
+  const handleChangeCreated = (dates: any) => {
     const { from, to } = mapRangeToFilter(dates);
-    onFilterChange('createdFrom', from);
-    onFilterChange('createdTo', to);
+    onFilterChange("createdFrom", from);
+    onFilterChange("createdTo", to);
   };
 
-  const handleChangeDeleted = (dates: any, _dateStrings: [string, string]) => {
+  const handleChangeDeleted = (dates: any) => {
     const { from, to } = mapRangeToFilter(dates);
-    onFilterChange('deletedFrom', from);
-    onFilterChange('deletedTo', to);
+    onFilterChange("deletedFrom", from);
+    onFilterChange("deletedTo", to);
   };
 
+  // Sort button
   const buildSortButton = (column: WorkSortableColumn) => {
     const isActive = sort.sortColumn === column;
 
     let icon = "⇅";
-
     if (isActive && sort.sortOrder === "asc") icon = "↑";
     if (isActive && sort.sortOrder === "desc") icon = "↓";
 
@@ -175,9 +153,7 @@ export default function WorkListPage() {
         size="small"
         type="text"
         icon={icon}
-        style={{
-          color: isActive ? "#1677ff" : undefined,
-        }}
+        style={{ color: isActive ? "#1677ff" : undefined }}
         onClick={() => {
           const next = getNextSortState(sort, column);
           setSort(next);
@@ -442,7 +418,8 @@ export default function WorkListPage() {
           <Tooltip title="Reset filtering and sorting">
             <Button
               icon={<ReloadOutlined />}
-              onClick={handleReset}
+              onClick={reset}
+              disabled={isDefault}
             />
           </Tooltip>
         </Space>

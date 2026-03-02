@@ -52,6 +52,25 @@ export const formatDateTime = (value: string | null | undefined): string | null 
   return `${days[d.getDay()]} ${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+export const formatSalary = (
+  min: number | null,
+  max: number | null,
+  currency: string | null
+): string | null => {
+  if (min == null && max == null) return null;
+
+  const format = (value: number) =>
+    value.toLocaleString('cs-CZ'); // or 'en-US' depending on locale
+
+  const cur = currency ?? '';
+
+  if (min != null && max != null) return `${format(min)} - ${format(max)} ${cur}`;
+  if (min != null) return `from ${format(min)} ${cur}`;
+  if (max != null) return `up to ${format(max)} ${cur}`;
+
+  return null;
+}
+
 
 export type DatePeriod = "this_month" | "last_month" | "this_week" | "last_week";
 const DATE_PERIOD_LABELS: Record<DatePeriod, string> = {

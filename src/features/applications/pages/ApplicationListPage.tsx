@@ -26,7 +26,7 @@ import type { Sorting } from "../../_base/types/sorting"
 import { getNextSortState } from "../../_base/extensions"
 
 import { formatPhoneNumber, formatDateTime, getProviderWorkUrl, getProviderIcon } from '../../../shared/extensions';
-import { useDebounce } from '../../../shared/hooks';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;

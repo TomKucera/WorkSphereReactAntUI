@@ -32,7 +32,7 @@ import { getNextSortState } from "../../_base/extensions"
 import dayjs from "dayjs";
 
 import { formatDateTime } from '../../../shared/extensions';
-import { useDebounce } from '../../../shared/hooks';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
