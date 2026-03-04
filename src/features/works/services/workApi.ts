@@ -21,3 +21,13 @@ export const getWorkById = async (id: number): Promise<Work> => {
     const response = await axiosInstance.get(`${BASE}/${id}`);
     return response.data;
 };
+
+export const getWorkDescription = async (workId: number): Promise<string> => {
+    const response = await axiosInstance.get(`${BASE}/${workId}/description`);
+    return response.data;
+};
+
+export const setWorkDescription = async (workId: number, description: string): Promise<string> => {
+    const response = await axiosInstance.put(`${BASE}/${workId}/description`, { "description": description});
+    return response.data;
+};

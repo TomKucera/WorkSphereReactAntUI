@@ -1,3 +1,5 @@
+import axios from "axios";
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -10,18 +12,25 @@ import {
     message,
     Spin,
     Flex, Splitter,
-    Row, Col 
+    Row, Col ,
+    Space,
+    Tooltip
 } from "antd";
-import { MailOutlined, PhoneOutlined, FileTextOutlined, FormOutlined, SendOutlined } from "@ant-design/icons";
+import { MailOutlined, PhoneOutlined, FileTextOutlined, FormOutlined, SendOutlined, ThunderboltOutlined } from "@ant-design/icons";
 
 import { ContactType} from "../../contacts/types/contact";
-import { getWorkById } from "../../works/services/workApi";
+import { getWorkById, getWorkDescription } from "../../works/services/workApi";
 import { getContacts } from "../../contacts/services/contactApi";
 import { getCvs, getCvFileById } from "../../cvs/services/cvApi";
 
 import { getProviderWorkUrl } from '../../../shared/extensions';
 
+import { generateCoverLetter } from "../../AI/services/aiApi";
 import { createApplication } from "../services/applicationApi";
+
+
+import { Language, LanguageLevel } from "../../AI/types/language";
+import { CoverLetterRequest } from "../../AI/types/coverLetterRequest";
 
 
 const { Title, Paragraph } = Typography;
@@ -38,10 +47,14 @@ export default function ApplicationPage() {
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [generating, setGenerating] = useState(false);
 
     const [work, setWork] = useState<any>(null);
+    const [workDescription, setWorkDescription] = useState<string | null>(null);
     const [cvs, setCvs] = useState<any[]>([]);
     const [contacts, setContacts] = useState<any[]>([]);
+
+    const [matchScore, setMatchScore] = useState<number | null>(null);
     
     const [selectedCvId, setSelectedCvId] = useState<number | null>(null);
     const [cvFileBlobs, setCvFileBlobs] = useState<Record<number, string>>({});
@@ -50,13 +63,27 @@ export default function ApplicationPage() {
 
     useEffect(() => {
         const loadData = async () => {
+            const workId = Number(id)
+
             try {
-                const workData = await getWorkById(Number(id));
+                const workData = await getWorkById(workId);
                 const contactsData = await getContacts();
                 const cvsData = await getCvs();
                 setWork(workData);
                 setContacts(contactsData);
-                setCvs(cvsData);    
+                setCvs(cvsData);
+
+                try {
+                    const customDescription = await getWorkDescription(workId);
+                    setWorkDescription(customDescription);
+                } catch (err: any) {
+                    // 404 → no custom description found so far
+                    if (err?.response?.status === 404) {
+                        setWorkDescription(null);
+                    } else {
+                        message.error("Failed to load custom description");
+                    }
+                }
             } catch {
                 message.error("Failed to load data");
             } finally {
@@ -113,7 +140,74 @@ export default function ApplicationPage() {
         }
     };
 
+    // const handleGenerateMessage = async () => {
+    //     if (!selectedCvId) {
+    //         message.warning("Please select CV first");
+    //         return;
+    //     }
+    
+    //     try {
+    //         setGenerating(true);
+    
+    //         const generatedText = await generateCoverLetter({
+    //             work_id: Number(id),
+    //             cv_id: selectedCvId,
+    //             language: Language.CS,          // or make selectable
+    //             // language_level: LanguageLevel.B2,    // or make selectable
+    //         });
+    
+    //         form.setFieldsValue({
+    //             message: generatedText,
+    //         });
+    
+    //         message.success("Message generated");
+    //     } catch {
+    //         message.error("Failed to generate message");
+    //     } finally {
+    //         setGenerating(false);
+    //     }
+    // };
+
+    const handleGenerateMessage = async () => {
+        if (!selectedCvId) {
+            message.warning("Please select CV first");
+            return;
+        }
+
+        try {
+            setGenerating(true);
+
+            const response = await generateCoverLetter({
+                work_id: Number(id),
+                cv_id: selectedCvId,
+                language: Language.CS,
+                // language_level: LanguageLevel.C1,
+            });
+
+            form.setFieldsValue({
+                message: response.body,
+            });
+
+            setMatchScore(response.matchScore);
+
+            message.success("Message generated");
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const backendMessage =
+                    error.response?.data?.detail ||
+                    error.response?.data?.message;
+                message.error(backendMessage ?? "Generation failed");
+            } else {
+                message.error("Unexpected error occurred");
+            }
+        } finally {
+            setGenerating(false);
+        }
+    };
+
     if (loading) return <Spin size="large" />;
+
+    const jobDescription = workDescription ?? work.description
 
     const selectedCvBlob = selectedCvId ? cvFileBlobs[selectedCvId] : null;
 
@@ -168,10 +262,24 @@ export default function ApplicationPage() {
     };
 
     const elCvLabel = (
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <FileTextOutlined/>
-          CV
-        </span>
+        // <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        //   <FileTextOutlined/>
+        //   CV
+        // </span>
+        <Flex justify="space-between" align="center">
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <FileTextOutlined />
+                CV
+            </span>
+            <Space>
+
+            {matchScore !== null && (
+                            <div style={{ marginBottom: 12 }}>
+                                <b>Match score:</b> {(matchScore * 100).toFixed(1)}%
+                            </div>
+                        )}
+            </Space>
+        </Flex>
     );
 
     const elMessageLabel = (
@@ -233,7 +341,7 @@ export default function ApplicationPage() {
                     }}
                 >
                     <div
-                        dangerouslySetInnerHTML={{ __html: work.description }}
+                        dangerouslySetInnerHTML={{ __html: jobDescription }}
                     />
                 </Card>
             </div>
@@ -319,7 +427,34 @@ export default function ApplicationPage() {
                         {buildCvSelect()}
                     </Form.Item>
 
-                    <Form.Item label={elMessageLabel} name="message" rules={[{ required: true, message: "Please write message" }]}>
+                    {/* <Form.Item label={elMessageLabel} name="message" rules={[{ required: true, message: "Please write message" }]}>
+                        <TextArea rows={10} placeholder="Write a message..." />
+                    </Form.Item> */}
+
+                    <Form.Item
+                        label={
+                            
+                              <Flex justify="space-between" align="center">
+                                <Flex align="center" gap={6}>
+                                  {elMessageLabel}
+                                </Flex>
+                          
+                                <Button
+                                  type="link"
+                                  icon={<ThunderboltOutlined />}
+                                  loading={generating}
+                                  onClick={handleGenerateMessage}
+                                  disabled={!selectedCvId} 
+                                >
+                                  Generate with AI
+                                </Button>
+                              </Flex>
+                            
+                          }
+                        name="message"
+                        rules={[{ required: true, message: "Please write message" }]}
+                        
+                    >
                         <TextArea rows={10} placeholder="Write a message..." />
                     </Form.Item>
 

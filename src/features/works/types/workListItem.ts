@@ -31,4 +31,5 @@ export interface WorkListItem {
     removedByScan: ScanListItemNested | null;
 
     application: WorkApplicationListItemNested | null;
+    hasCustomDescription: boolean;
 }

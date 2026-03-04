@@ -5,6 +5,7 @@ import AuthLayout from '@/layouts/AuthLayout';
 
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import ApplicationPage from '@/features/applications/pages/ApplicationPage';
+import WorkPage from '@/features/works/pages/WorkPage';
 
 import ContactsPage from '@/features/contacts/pages/ContactsPage';
 import CvListPage from '@/features/cvs/pages/CvListPage';
@@ -37,7 +38,8 @@ export const router = createBrowserRouter([
           { path: 'cvs', element: <CvListPage /> },
           { path: 'contacts', element: <ContactsPage /> },
           { path: 'cvs/:id', element: <CvEditPage /> },
-          { path: 'works/:id/apply', element: <ApplicationPage /> }
+          { path: 'works/:id/apply', element: <ApplicationPage /> },
+          { path: 'works/:id', element: <WorkPage /> },
         ],
       },
     ],

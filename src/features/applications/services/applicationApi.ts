@@ -26,6 +26,11 @@ export const getApplicationById = async (id: number): Promise<WorkApplication> =
   return response.data;
 };
 
+export const getApplicationByWorkId = async (work_id: number): Promise<WorkApplication> => {
+  const response = await axiosInstance.get(`${BASE}/by-work/${work_id}`);
+  return response.data;
+};
+
 export const createApplication = async (
   data: CreateWorkApplicationRequest
 ): Promise<WorkApplication> => {

@@ -18,9 +18,9 @@ import {
   Tooltip,
   Flex,
 } from "antd";
-import { ReloadOutlined, SendOutlined, DownOutlined } from "@ant-design/icons";
+import { ReloadOutlined, SendOutlined, EditOutlined } from "@ant-design/icons";
 
-import type { ColumnsType} from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 
 import { listWorks } from "../services/workApi";
 import type { WorkFilter } from "../types/workFilter";
@@ -44,7 +44,7 @@ const DEFAULT_PAGE_SIZE = Number(PAGE_SIZE_OPTIONS[1]);
 const filterInputStyle = { flex: 1, marginTop: 4 };
 
 const defaultFilter: WorkFilter = { active: true, application: false };  // createdFrom
-const defaultSorting: Sorting<WorkSortableColumn> = {sortColumn: 'CreatedAt', sortOrder: 'desc'};
+const defaultSorting: Sorting<WorkSortableColumn> = { sortColumn: 'CreatedAt', sortOrder: 'desc' };
 const datePickerPresets = buildDatePickerPresets(['this_week', 'last_week', 'this_month'])
 
 export default function WorkListPage() {
@@ -161,7 +161,7 @@ export default function WorkListPage() {
       />
     );
   };
-  
+
   const columns: ColumnsType<WorkListItem> = [
     {
       title: (
@@ -238,25 +238,25 @@ export default function WorkListPage() {
       render: (_, r) => (
         <div>
           <div>
-          { (r.company ?? '').length > 0 ? r.company : '?'}
+            {(r.company ?? '').length > 0 ? r.company : '?'}
           </div>
           <div>
             {
-            !r.removedByScanId ? (
-              <a
-                href={getProviderWorkUrl(r.provider, r.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontWeight:  "bold" }}
-              >
-                {r.name}
-              </a>
-            ) : (
-              <span style={{ fontWeight: "bold" }}>
-                {r.name}
-              </span>
-            )
-          }
+              !r.removedByScanId ? (
+                <a
+                  href={getProviderWorkUrl(r.provider, r.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontWeight: "bold" }}
+                >
+                  {r.name}
+                </a>
+              ) : (
+                <span style={{ fontWeight: "bold" }}>
+                  {r.name}
+                </span>
+              )
+            }
           </div>
         </div>
       ),
@@ -282,7 +282,7 @@ export default function WorkListPage() {
             {buildSortButton("Remote")}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <InputNumber
+            <InputNumber
               min={0}
               placeholder="salary from"
               value={filters.salary}
@@ -297,10 +297,10 @@ export default function WorkListPage() {
       render: (_, r) => (
         <div>
           <div>
-          { r.remoteRatio == null ? null : `${r.remoteRatio} %`}
+            {r.remoteRatio == null ? null : `${r.remoteRatio} %`}
           </div>
           <div>
-          {formatSalary(r.salaryMin, r.salaryMax, r.salaryCurrency)}
+            {formatSalary(r.salaryMin, r.salaryMax, r.salaryCurrency)}
           </div>
         </div>
       ),
@@ -318,7 +318,7 @@ export default function WorkListPage() {
               placeholder={['Created from', 'Created to']}
               allowEmpty={[true, true]}
               size="small"
-              value= {[ filters.createdFrom ? dayjs(filters.createdFrom) : null, filters.createdTo ? dayjs(filters.createdTo) : null]}
+              value={[filters.createdFrom ? dayjs(filters.createdFrom) : null, filters.createdTo ? dayjs(filters.createdTo) : null]}
               format="DD.MM.YYYY"
               disabledDate={(current) => current && current.valueOf() > Date.now()}
               onChange={handleChangeCreated}
@@ -332,7 +332,7 @@ export default function WorkListPage() {
               placeholder={['Deleted from', 'Deleted to']}
               allowEmpty={[true, true]}
               size="small"
-              value= {[ filters.deletedFrom ? dayjs(filters.deletedFrom) : null, filters.deletedTo ? dayjs(filters.deletedTo) : null]}
+              value={[filters.deletedFrom ? dayjs(filters.deletedFrom) : null, filters.deletedTo ? dayjs(filters.deletedTo) : null]}
               format="DD.MM.YYYY"
               disabledDate={(current) => current && current.valueOf() > Date.now()}
               onChange={handleChangeDeleted}
@@ -346,8 +346,8 @@ export default function WorkListPage() {
       //width: 260,
       render: (_, r) => (
         <div>
-          <div style={{color: 'green'}}>{formatDateTime(r.addedByScan.endedAt) ?? '-'}</div>
-          <div style={{color: 'darkred'}}>{formatDateTime(r.removedByScan?.endedAt) ?? '-'}</div>
+          <div style={{ color: 'green' }}>{formatDateTime(r.addedByScan.endedAt) ?? '-'}</div>
+          <div style={{ color: 'darkred' }}>{formatDateTime(r.removedByScan?.endedAt) ?? '-'}</div>
         </div>
       ),
       // align: 'center',
@@ -390,7 +390,19 @@ export default function WorkListPage() {
       key: "actions",
       align: "right" as const,
       render: (_: any, r: WorkListItem) => (
-        <Space>
+        <Space size="middle">
+          <Link to={`/works/${r.id}`}>
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              size="small"
+              // disabled={r.removedByScanId != null || r.application != null}
+              style={{
+                color: r.hasCustomDescription ? "orange" : "silver"
+              }}
+            />
+          </Link>
+
           {r.application == null &&
             (<Link to={`/works/${r.id}/apply`}>
               <Button
@@ -407,7 +419,7 @@ export default function WorkListPage() {
       ),
     },
   ];
-  
+
   return (
     <>
       <Flex justify="space-between" align="center">
