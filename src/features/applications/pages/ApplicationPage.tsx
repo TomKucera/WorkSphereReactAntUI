@@ -1,6 +1,7 @@
 import axios from "axios";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { renderAsync } from "docx-preview";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     Card,
@@ -12,13 +13,13 @@ import {
     message,
     Spin,
     Flex, Splitter,
-    Row, Col ,
+    Row, Col,
     Space,
     Tooltip
 } from "antd";
 import { MailOutlined, PhoneOutlined, FileTextOutlined, FormOutlined, SendOutlined, ThunderboltOutlined } from "@ant-design/icons";
 
-import { ContactType} from "../../contacts/types/contact";
+import { ContactType } from "../../contacts/types/contact";
 import { getWorkById, getWorkDescription } from "../../works/services/workApi";
 import { getContacts } from "../../contacts/services/contactApi";
 import { getCvs, getCvFileById } from "../../cvs/services/cvApi";
@@ -41,6 +42,42 @@ const contactIconMap: Record<ContactType, React.ReactNode> = {
     Phone: <PhoneOutlined />,
 };
 
+const DocxPreview = ({ blobUrl, containerRef }: {
+    blobUrl: string;
+    containerRef: React.RefObject<HTMLDivElement>;
+}) => {
+
+    useEffect(() => {
+
+        const loadDocx = async () => {
+
+            const response = await fetch(blobUrl);
+            const arrayBuffer = await response.arrayBuffer();
+
+            if (containerRef.current) {
+                containerRef.current.innerHTML = "";
+                await renderAsync(arrayBuffer, containerRef.current);
+            }
+
+        };
+
+        loadDocx();
+
+    }, [blobUrl]);
+
+    return (
+        <div
+            ref={containerRef}
+            style={{
+                height: "100%",
+                overflow: "auto",
+                background: "white",
+                padding: 20,
+            }}
+        />
+    );
+};
+
 export default function ApplicationPage() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -55,9 +92,10 @@ export default function ApplicationPage() {
     const [contacts, setContacts] = useState<any[]>([]);
 
     const [matchScore, setMatchScore] = useState<number | null>(null);
-    
+
     const [selectedCvId, setSelectedCvId] = useState<number | null>(null);
     const [cvFileBlobs, setCvFileBlobs] = useState<Record<number, string>>({});
+    const docxContainerRef = useRef<HTMLDivElement | null>(null);
 
     const [form] = Form.useForm();
 
@@ -94,30 +132,53 @@ export default function ApplicationPage() {
     }, [id]);
 
     useEffect(() => {
-        console.log("Selected CV ID:", selectedCvId);
         if (!selectedCvId) return;
-      
+
         // skip if blob exists
         if (cvFileBlobs[selectedCvId]) return;
-      
+
         const loadCv = async () => {
-          try {
-            const blob = await getCvFileById(selectedCvId); // responseType: "blob"
-            const blobUrl = URL.createObjectURL(blob);
-      
-            setCvFileBlobs(prev => ({
-              ...prev,
-              [selectedCvId]: blobUrl
-            }));
-          } catch {
-            message.error("Failed to load CV file");
-          }
+            try {
+                const blob = await getCvFileById(selectedCvId); // responseType: "blob"
+                const blobUrl = URL.createObjectURL(blob);
+
+                setCvFileBlobs(prev => ({
+                    ...prev,
+                    [selectedCvId]: blobUrl
+                }));
+            } catch {
+                message.error("Failed to load CV file");
+            }
         };
-      
+
         loadCv();
-      
-      }, [selectedCvId, cvFileBlobs]);
-      
+
+    }, [selectedCvId, cvFileBlobs]);
+
+    useEffect(() => {
+        if (!selectedCvId) return;
+
+        const selectedCv = cvs.find(c => c.id === selectedCvId);
+        if (!selectedCv) return;
+
+        const blobUrl = cvFileBlobs[selectedCvId];
+        if (!blobUrl) return;
+
+        if (!selectedCv.contentType?.includes("word")) return;
+
+        const loadDocx = async () => {
+            const response = await fetch(blobUrl);
+            const arrayBuffer = await response.arrayBuffer();
+
+            if (docxContainerRef.current) {
+                docxContainerRef.current.innerHTML = "";
+                await renderAsync(arrayBuffer, docxContainerRef.current);
+            }
+        };
+
+        loadDocx();
+
+    }, [selectedCvId, cvFileBlobs, cvs]);
 
     const onFinish = async (values: any) => {
         try {
@@ -145,21 +206,21 @@ export default function ApplicationPage() {
     //         message.warning("Please select CV first");
     //         return;
     //     }
-    
+
     //     try {
     //         setGenerating(true);
-    
+
     //         const generatedText = await generateCoverLetter({
     //             work_id: Number(id),
     //             cv_id: selectedCvId,
     //             language: Language.CS,          // or make selectable
     //             // language_level: LanguageLevel.B2,    // or make selectable
     //         });
-    
+
     //         form.setFieldsValue({
     //             message: generatedText,
     //         });
-    
+
     //         message.success("Message generated");
     //     } catch {
     //         message.error("Failed to generate message");
@@ -209,22 +270,23 @@ export default function ApplicationPage() {
 
     const jobDescription = workDescription ?? work.description
 
+    const selectedCv = cvs.find(c => c.id === selectedCvId);
     const selectedCvBlob = selectedCvId ? cvFileBlobs[selectedCvId] : null;
 
     const buildContactLabel = (type: ContactType) => (
         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {contactIconMap[type]}
-          {type}
+            {contactIconMap[type]}
+            {type}
         </span>
     );
 
     const buildContactSelect = (type: ContactType) => {
         const contactsByType = contacts.filter((c) => c.type === type);
-        const options = contactsByType.map((c) => ({label: c.value, value: c.id}));
+        const options = contactsByType.map((c) => ({ label: c.value, value: c.id }));
         const primary = contactsByType.find((c) => c.isPrimary);
-        
+
         let defaultValue: number | null = null;
-        
+
         if (primary) {
             defaultValue = primary.id;
         } else if (contactsByType.length === 1) {
@@ -239,19 +301,19 @@ export default function ApplicationPage() {
             const fieldName = type === "Email" ? "contactEmailId" : "contactPhoneId";
             form.setFieldsValue({ [fieldName]: defaultValue });
         }
-            
+
         return (
             <Select
                 options={options}
                 placeholder={`Choose ${type}`}
-                defaultValue={defaultValue} 
+                defaultValue={defaultValue}
                 disabled={disabled}
             />
         )
     };
 
     const buildCvSelect = () => {
-        const options = cvs.map((c) => ({label: c.originalFileName, value: c.id}));
+        const options = cvs.map((c) => ({ label: c.originalFileName, value: c.id }));
         return (
             <Select
                 options={options}
@@ -273,19 +335,19 @@ export default function ApplicationPage() {
             </span>
             <Space>
 
-            {matchScore !== null && (
-                            <div style={{ marginBottom: 12 }}>
-                                <b>Match score:</b> {(matchScore * 100).toFixed(1)}%
-                            </div>
-                        )}
+                {matchScore !== null && (
+                    <div style={{ marginBottom: 12 }}>
+                        <b>Match score:</b> {(matchScore * 100).toFixed(1)}%
+                    </div>
+                )}
             </Space>
         </Flex>
     );
 
     const elMessageLabel = (
         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <FormOutlined/>
-          Message
+            <FormOutlined />
+            Message
         </span>
     );
 
@@ -349,7 +411,6 @@ export default function ApplicationPage() {
     )
 
     const elCv = (
-
         <div
             style={{
                 height: "100%",
@@ -357,14 +418,6 @@ export default function ApplicationPage() {
                 flexDirection: "column",
             }}
         >
-            {/* NADPIS */}
-            {/* <div style={{ padding: 12 }}>
-                <Paragraph>
-                    {selectedCv.originalFileName}
-                </Paragraph>
-            </div> */}
-
-            {/* OBSAH */}
             <div style={{ flex: 1, padding: 12, overflow: "hidden" }}>
                 <Card
                     size="small"
@@ -375,25 +428,78 @@ export default function ApplicationPage() {
                     }}
                     styles={{
                         body: {
-                          height: "100%",
-                          overflow: "auto",
+                            height: "100%",
+                            overflow: "auto",
                         },
-                      }}
+                    }}
                 >
-                    {selectedCvBlob ? (
-                        <iframe
-                        src={selectedCvBlob}
-                        width="100%"
-                        height="100%"
-                        style={{ border: "1px solid #ccc", borderRadius: "6px" }}
-                        title="CV Preview"
-                    />
-                    ):(<></>)
-                   }
+                    {!selectedCvBlob && (
+                        <div style={{ textAlign: "center", marginTop: 40 }}>
+                            Select CV to preview
+                        </div>
+                    )}
+
+                    {selectedCvBlob && selectedCv && (
+                        <>
+                            {/* PDF preview */}
+                            {selectedCv.contentType === "application/pdf" && (
+                                <iframe
+                                    src={selectedCvBlob}
+                                    width="100%"
+                                    height="100%"
+                                    style={{
+                                        border: "1px solid #ccc",
+                                        borderRadius: "6px",
+                                        background: "white",
+                                    }}
+                                    title="CV Preview"
+                                />
+                            )}
+
+                            {/* DOCX preview */}
+                            {selectedCv.contentType?.includes(
+                                "application/vnd.openxmlformats-officedocument"
+                            ) && (
+                                    <DocxPreview blobUrl={selectedCvBlob} containerRef={docxContainerRef} />
+                                )}
+
+                            {/* TXT preview */}
+                            {selectedCv.contentType === "text/plain" && (
+                                <iframe
+                                    src={selectedCvBlob}
+                                    width="100%"
+                                    height="100%"
+                                    style={{
+                                        border: "1px solid #ccc",
+                                        borderRadius: "6px",
+                                        background: "white",
+                                    }}
+                                    title="CV Preview"
+                                />
+                            )}
+
+                            {/* fallback */}
+                            {![
+                                "application/pdf",
+                                "text/plain",
+                            ].includes(selectedCv.contentType) &&
+                                !selectedCv.contentType?.includes(
+                                    "application/vnd.openxmlformats-officedocument"
+                                ) && (
+                                    <div style={{ padding: 20 }}>
+                                        Preview not supported for this file type.
+                                        <br />
+                                        <a href={selectedCvBlob} download>
+                                            Download CV
+                                        </a>
+                                    </div>
+                                )}
+                        </>
+                    )}
                 </Card>
             </div>
         </div>
-    )
+    );
 
     const elApplication = (
         <div style={{ height: "100%", padding: 12 }}>
@@ -401,22 +507,22 @@ export default function ApplicationPage() {
                 <Form layout="vertical" form={form} onFinish={onFinish}>
                     <Row gutter={16}>
                         <Col span={12}>
-                        <Form.Item
-                            label={buildContactLabel("Phone")}
-                            name="contactPhoneId"
-                            rules={[{ required: true, message: "Select Phone" }]}
-                        >
-                            {buildContactSelect("Phone")}
-                        </Form.Item>
+                            <Form.Item
+                                label={buildContactLabel("Phone")}
+                                name="contactPhoneId"
+                                rules={[{ required: true, message: "Select Phone" }]}
+                            >
+                                {buildContactSelect("Phone")}
+                            </Form.Item>
                         </Col>
                         <Col span={12}>
-                        <Form.Item
-                            label={buildContactLabel("Email")}
-                            name="contactEmailId"
-                            rules={[{ required: true, message: "Select Email" }]}
-                        >
-                            {buildContactSelect("Email")}
-                        </Form.Item>
+                            <Form.Item
+                                label={buildContactLabel("Email")}
+                                name="contactEmailId"
+                                rules={[{ required: true, message: "Select Email" }]}
+                            >
+                                {buildContactSelect("Email")}
+                            </Form.Item>
                         </Col>
                     </Row>
                     <Form.Item
@@ -433,27 +539,27 @@ export default function ApplicationPage() {
 
                     <Form.Item
                         label={
-                            
-                              <Flex justify="space-between" align="center">
+
+                            <Flex justify="space-between" align="center">
                                 <Flex align="center" gap={6}>
-                                  {elMessageLabel}
+                                    {elMessageLabel}
                                 </Flex>
-                          
+
                                 <Button
-                                  type="link"
-                                  icon={<ThunderboltOutlined />}
-                                  loading={generating}
-                                  onClick={handleGenerateMessage}
-                                  disabled={!selectedCvId} 
+                                    type="link"
+                                    icon={<ThunderboltOutlined />}
+                                    loading={generating}
+                                    onClick={handleGenerateMessage}
+                                    disabled={!selectedCvId}
                                 >
-                                  Generate with AI
+                                    Generate with AI
                                 </Button>
-                              </Flex>
-                            
-                          }
+                            </Flex>
+
+                        }
                         name="message"
                         rules={[{ required: true, message: "Please write message" }]}
-                        
+
                     >
                         <TextArea rows={10} placeholder="Write a message..." />
                     </Form.Item>
@@ -484,19 +590,19 @@ export default function ApplicationPage() {
                         collapsible={{ start: true, end: true, showCollapsibleIcon: "auto" }}
                     //min="20%"
                     >
-                        {elWork}  
+                        {elWork}
                     </Splitter.Panel>
                     <Splitter.Panel
                         collapsible={{ start: true, end: true, showCollapsibleIcon: "auto" }}
                     //min="20%"
                     >
-                       {elCv}
+                        {elCv}
                     </Splitter.Panel>
                     <Splitter.Panel
                         collapsible={{ start: true, end: true, showCollapsibleIcon: "auto" }}
                         min="30%"
                     >
-                   {elApplication}
+                        {elApplication}
                     </Splitter.Panel>
                 </Splitter>
             </Flex>
