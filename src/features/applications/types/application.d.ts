@@ -24,6 +24,7 @@ export interface CreateWorkApplicationRequest {
   contactEmailId: number;
   contactPhoneId: number;
   message: string;
+  autoApply: boolean;
 }
 
 export interface UpdateWorkApplicationRequest {

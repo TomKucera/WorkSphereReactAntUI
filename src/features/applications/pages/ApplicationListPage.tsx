@@ -10,9 +10,10 @@ import {
   Tag,
   DatePicker,
   Avatar,
-  Tooltip
+  Tooltip,
+  Flex
 } from "antd";
-import { MailOutlined, PhoneOutlined } from "@ant-design/icons";
+import { MailOutlined, PhoneOutlined, ThunderboltOutlined, UserOutlined } from "@ant-design/icons";
 
 import type { ColumnsType } from "antd/es/table";
 
@@ -48,6 +49,10 @@ const STATUS_LABELS: Record<WorkApplicationStatus, string> = {
   ACCEPTED: "Accepted",
 };
 
+const typeConfig = {
+  AUTO: { color: "geekblue", icon: <ThunderboltOutlined />, label: "Auto" },
+  MANUAL: { color: "green", icon: <UserOutlined />, label: "Manual"},
+};
 
 export default function ApplicationListPage() {
   const [data, setData] = useState<ListPage<WorkApplicationListItem> | null>(null);
@@ -367,9 +372,25 @@ export default function ApplicationListPage() {
 
       key: "status",
       //width: 260,
-      render: (_, r) => (
-        <Tag>{STATUS_LABELS[r.status]}</Tag>  
-      ),
+      render: (_, r) =>
+        {
+          const cfg = typeConfig[r.applicationType];
+        
+          return (
+            <Flex vertical gap={4}>
+              <Tag color={cfg.color} icon={cfg.icon}>{cfg.label}</Tag>
+              <Tag>{STATUS_LABELS[r.status]}</Tag>
+            </Flex>
+          );
+        },
+      // (
+      //   <>
+      //     <Tag>{STATUS_LABELS[r.status]}</Tag>
+      //     <Tag color={r.applicationType === "AUTO" ? "geekblue" : "green"}>{r.applicationType}</Tag>
+
+          
+      //   </>
+      // ),
       //align: 'center',
     },
   ];

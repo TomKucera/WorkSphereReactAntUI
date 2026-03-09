@@ -1,4 +1,5 @@
 import type { WorkApplicationStatus } from "./workApplicationStatus";
+import type { WorkApplicationType } from "./workApplicationType";
 
 export interface WorkListItemNested {
     id: number;
@@ -26,6 +27,7 @@ export interface WorkApplicationListItem {
 
     message: string;
     status: WorkApplicationStatus;
+    applicationType: WorkApplicationType;
 
     createdAt: string;
     updatedAt?: string | null;

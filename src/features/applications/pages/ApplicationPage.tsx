@@ -19,19 +19,20 @@ import {
 } from "antd";
 import { MailOutlined, PhoneOutlined, FileTextOutlined, FormOutlined, SendOutlined, ThunderboltOutlined } from "@ant-design/icons";
 
-import { ContactType } from "../../contacts/types/contact";
-import { getWorkById, getWorkDescription } from "../../works/services/workApi";
-import { getContacts } from "../../contacts/services/contactApi";
-import { getCvs, getCvFileById } from "../../cvs/services/cvApi";
 
 import { getProviderWorkUrl } from '../../../shared/extensions';
 
+import { getWorkById, getWorkDescription } from "../../works/services/workApi";
+import { getContacts } from "../../contacts/services/contactApi";
+import { getCvs, getCvFileById } from "../../cvs/services/cvApi";
 import { generateCoverLetter } from "../../AI/services/aiApi";
 import { createApplication } from "../services/applicationApi";
+import { getProviderSettings } from "../../providers/services/providerApi";
 
-
-import { Language, LanguageLevel } from "../../AI/types/language";
+import { ContactType } from "../../contacts/types/contact";
 import { CoverLetterRequest } from "../../AI/types/coverLetterRequest";
+import { Language, LanguageLevel } from "../../AI/types/language";
+import { ProviderSettings, ProviderSettingsMap } from "../../providers/types/providerSettings";
 
 
 const { Title, Paragraph } = Typography;
@@ -90,6 +91,7 @@ export default function ApplicationPage() {
     const [workDescription, setWorkDescription] = useState<string | null>(null);
     const [cvs, setCvs] = useState<any[]>([]);
     const [contacts, setContacts] = useState<any[]>([]);
+    const [providerSettings, setProviderSettings] = useState<ProviderSettings | null>(null);
 
     const [matchScore, setMatchScore] = useState<number | null>(null);
 
@@ -107,9 +109,11 @@ export default function ApplicationPage() {
                 const workData = await getWorkById(workId);
                 const contactsData = await getContacts();
                 const cvsData = await getCvs();
+                const providerSettingsMap = await getProviderSettings();
                 setWork(workData);
                 setContacts(contactsData);
                 setCvs(cvsData);
+                setProviderSettings(providerSettingsMap[workData.provider])
 
                 try {
                     const customDescription = await getWorkDescription(workId);
@@ -181,6 +185,10 @@ export default function ApplicationPage() {
     }, [selectedCvId, cvFileBlobs, cvs]);
 
     const onFinish = async (values: any) => {
+
+        // console.log('values', values);
+        const autoApply = values.type == 'auto';
+
         try {
             setSubmitting(true);
 
@@ -190,12 +198,22 @@ export default function ApplicationPage() {
                 contactEmailId: values.contactEmailId,
                 contactPhoneId: values.contactPhoneId,
                 message: values.message,
+                autoApply: autoApply
             });
 
-            message.success("Application submitted successfully");
+            message.success(
+                autoApply
+                    ? "Application auto-processed successfully"
+                    : "Application saved successfully"
+            );
+
             navigate("/works");
         } catch {
-            message.error("Application failed");
+            message.error(
+                autoApply
+                    ? "Auto apply failed. Submit manually."
+                    : "Application save failed."
+            );
         } finally {
             setSubmitting(false);
         }
@@ -561,18 +579,53 @@ export default function ApplicationPage() {
                         rules={[{ required: true, message: "Please write message" }]}
 
                     >
-                        <TextArea rows={10} placeholder="Write a message..." />
+                        <TextArea
+                            rows={10}
+                            placeholder="Write a message..."
+                            maxLength={providerSettings?.max_message_length}
+                        />
                     </Form.Item>
 
-                    <Form.Item>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            icon={<SendOutlined />}
-                            loading={submitting}
-                        >
-                            Submit Application
-                        </Button>
+                    <Form.Item name="type" hidden>
+                        <Input />
+                    </Form.Item>
+
+                    <Form.Item >
+                        <Flex justify="space-between" align="flex-start">
+
+                            <Button
+                                onClick={() => navigate("/works")}
+                                style={{ width: 140 }}
+                                disabled={submitting}
+                            >
+                                Cancel
+                            </Button>
+
+                            <Flex vertical gap={10}>
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    // icon={<SendOutlined />}
+                                    loading={submitting}
+                                    onClick={() => form.setFieldValue("type", "manual")}
+                                    style={{ width: 220 }}
+                                >
+                                    Save manual Application
+                                </Button>
+
+                                <Button
+                                    htmlType="submit"
+                                    icon={<ThunderboltOutlined />}
+                                    loading={submitting}
+                                    onClick={() => form.setFieldValue("type", "auto")}
+                                    disabled={!providerSettings?.auto_apply_enabled}
+                                    style={{ width: 220 }}
+                                >
+                                    Auto Apply
+                                </Button>
+                            </Flex>
+
+                        </Flex>
                     </Form.Item>
                 </Form>
             </Card>
