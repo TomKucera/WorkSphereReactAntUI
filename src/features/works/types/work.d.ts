@@ -22,6 +22,7 @@ export interface Work {
     provider: string;
     originalId: string;
     name: string;
+    description: string | null;
     company: string;
     url: string;
     addedByScanId: number;

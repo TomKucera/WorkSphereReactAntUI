@@ -45,7 +45,7 @@ const contactIconMap: Record<ContactType, React.ReactNode> = {
 
 const DocxPreview = ({ blobUrl, containerRef }: {
     blobUrl: string;
-    containerRef: React.RefObject<HTMLDivElement>;
+    containerRef: React.RefObject<HTMLDivElement | null>;
 }) => {
 
     useEffect(() => {

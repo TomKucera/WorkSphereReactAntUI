@@ -1,5 +1,5 @@
 import axios from '@/services/axiosInstanceAzure';
-import type { Scan } from '@/types/scan';
+import type { Scan } from '../types/scan';
 // https://workspherescannerapi.azurewebsites.net/api/swagger/ui
 
 const API_KEY = '';

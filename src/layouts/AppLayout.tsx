@@ -40,7 +40,9 @@ export default function AppLayout() {
     if (path === "/") return "dashboard";
     if (path.startsWith("/scans")) return "scans";
     if (path.startsWith("/works")) return "works";
+    if (path.startsWith("/applications")) return "applications";
     if (path.startsWith("/cvs")) return "cvs";
+    if (path.startsWith("/contacts")) return "contacts";
 
     return "";
   };

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Table,
   Typography,
@@ -392,6 +393,17 @@ export default function ApplicationListPage() {
       //   </>
       // ),
       //align: 'center',
+    },
+    {
+      title: "Detail",
+      key: "detail",
+      width: 90,
+      align: "center",
+      render: (_, r) => (
+        <Link to={`/applications/${r.id}`}>
+          <Button size="small">Open</Button>
+        </Link>
+      ),
     },
   ];
 

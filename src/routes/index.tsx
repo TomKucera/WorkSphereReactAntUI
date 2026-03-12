@@ -5,9 +5,11 @@ import AuthLayout from '@/layouts/AuthLayout';
 
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import ApplicationPage from '@/features/applications/pages/ApplicationPage';
+import ApplicationDetailPage from '@/features/applications/pages/ApplicationDetailPage';
 import WorkPage from '@/features/works/pages/WorkPage';
 
 import ContactsPage from '@/features/contacts/pages/ContactsPage';
+import EmailInboxPage from '@/features/inbox/pages/EmailInboxPage';
 import CvListPage from '@/features/cvs/pages/CvListPage';
 import CvEditPage from '@/features/cvs/pages/CvEditPage';
 import ScanListPage from '@/features/scans/pages/ScanListPage';
@@ -35,8 +37,10 @@ export const router = createBrowserRouter([
           { path: 'scans', element: <ScanListPage /> },
           { path: 'works', element: <WorkListPage /> },
           { path: 'applications', element: <ApplicationListPage /> },
+          { path: 'applications/:id', element: <ApplicationDetailPage /> },
           { path: 'cvs', element: <CvListPage /> },
           { path: 'contacts', element: <ContactsPage /> },
+          { path: 'contacts/:contactId/inbox', element: <EmailInboxPage /> },
           { path: 'cvs/:id', element: <CvEditPage /> },
           { path: 'works/:id/apply', element: <ApplicationPage /> },
           { path: 'works/:id', element: <WorkPage /> },

@@ -1,7 +1,7 @@
 import { Table, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import type { ColumnsType } from 'antd/es/table';
-import type { Scan } from '@/types/scan';
+import type { Scan } from '../types/scan';
 import { getScans } from '../services/scanApi';
 import { message } from 'antd';
 import { Link } from 'react-router-dom';

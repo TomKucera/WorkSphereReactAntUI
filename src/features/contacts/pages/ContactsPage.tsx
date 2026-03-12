@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 
 import { Flex, Table, Button, Modal, Form, Input, Switch,Space, Popconfirm, Tooltip, Typography, message } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, MailOutlined, PhoneOutlined, InboxOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { Contact, ContactType } from "../types/contact";
 import Splitter from "antd/es/splitter";
+import { Link } from "react-router-dom";
 import {
   getContacts,
   createContact,
@@ -110,9 +111,17 @@ export default function ContactsPage() {
     },
     {
       title: "Actions",
-      width: 100,
+      width: 140,
       render: (_, record) => (
         <Space size="middle">
+          {record.type === "Email" && (
+            <Tooltip title="Open Inbox">
+              <Link to={`/contacts/${record.id}/inbox`}>
+                <InboxOutlined style={{ color: "#722ed1", cursor: "pointer" }} />
+              </Link>
+            </Tooltip>
+          )}
+
           <Tooltip title="Edit">
             <EditOutlined
               style={{ color: "#1677ff", cursor: "pointer" }}

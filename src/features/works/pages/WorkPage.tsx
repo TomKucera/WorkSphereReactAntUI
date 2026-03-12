@@ -107,10 +107,10 @@ export default function WorkPage() {
     };
 
     if (loading) return <Spin size="large" />;
+    if (!work) return <Spin size="large" />;
 
-    const readonly = work!.removedByScanId || workApplication;
-
-    const company = work!.company?.trim();
+    const readonly = work.removedByScanId || workApplication;
+    const company = work.company?.trim();
 
     const elHeader = (
         <Header
@@ -180,7 +180,7 @@ export default function WorkPage() {
                     },
                 }}
             >
-                <div style={{ height: "95%", overflow: "scroll" }} dangerouslySetInnerHTML={{ __html: work.description }} />
+                <div style={{ height: "95%", overflow: "scroll" }} dangerouslySetInnerHTML={{ __html: work.description ?? "" }} />
             </Card>
         </div>
     );
